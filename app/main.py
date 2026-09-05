@@ -1,11 +1,23 @@
+"""应用入口：创建 FastAPI 实例并挂载所有路由。"""
+
+import uvicorn
 from fastapi import FastAPI
 
 from app.routers.system import system_router
-# uvicorn app.main:app --reload --port 8000
-'''
-app.main:app = 模块路径 app/main.py + 里面模块级的 FastAPI 实例变量 app。所以 main.py 必须存在 app = FastAPI() 这行。
---reload 是开发模式，改代码自动重启；生产环境不要带。
---port 8000 可以改成别的，端口被占时换 8001 等。
-'''
+from app.routers.users import user_router
+
 app = FastAPI()
-app.include_router(system_router)
+
+# 只有 include_router 之后，路由才会真正注册到 app
+for router in [user_router, system_router]:
+    app.include_router(router)
+
+
+if __name__ == "__main__":
+    # 等价于命令行执行：uvicorn app.main:app --reload --port 8000
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+    )
