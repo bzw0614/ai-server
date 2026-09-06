@@ -5,11 +5,12 @@ from fastapi import FastAPI
 
 from app.routers.system import system_router
 from app.routers.users import user_router
+from app.routers.chat import chat_router
 
 app = FastAPI()
 
 # 只有 include_router 之后，路由才会真正注册到 app
-for router in [user_router, system_router]:
+for router in [user_router, system_router, chat_router]:
     app.include_router(router)
 
 
