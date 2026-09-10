@@ -20,6 +20,4 @@ class ChatRequest(BaseModel):
         return value
 
 class ChatResponse(BaseModel):
-    responseTime: datetime # 响应时间
-    responseMessage: str #回复
-    responseStatus: int # 响应码
+    message: str #回复

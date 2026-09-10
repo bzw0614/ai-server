@@ -781,6 +781,11 @@ ai-server/
 │   ├── test_chat.py
 │   └── test_models.py
 │
+├── web/
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+│
 ├── .env
 ├── .gitignore
 ├── requirements.txt
@@ -1432,4 +1437,55 @@ Agent / Tool Calling
 ```
 
 就不会变成“会调用一个大模型 API”，而是已经具备一个**真正 AI 后端服务的 FastAPI 骨架**。
+
+---
+
+# 三十一、前端页面（仿 ChatGPT 聊天界面）
+
+前端不需要任何构建工具（没有 npm、没有打包），就是一个静态目录，由 FastAPI 直接托管：
+
+```text
+web/
+├── index.html   # 页面结构：侧边栏 + 对话区 + 输入框
+├── styles.css   # 样式：深浅色主题、消息气泡、Markdown 样式、响应式
+└── app.js       # 逻辑：调用 chat 接口、本地会话管理、Markdown 渲染
+```
+
+## 1. 启动方式
+
+```bash
+# 项目根目录下
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+然后浏览器打开 <http://127.0.0.1:8000/>（不要双击 `web/index.html` 打开，
+那样是 `file://` 协议，请求不到后端接口）。
+
+`app/main.py` 里为前端做了两件事：
+
+1. `app.mount("/", StaticFiles(directory=WEB_DIR, html=True))`：把 `web/` 目录挂成根路径的静态资源。
+   注意 **mount 必须写在 `include_router` 之后**，路由是按注册顺序匹配的，先 mount `"/"` 会把 `/api` 下的接口全部吞掉。
+2. `CORSMiddleware`：如果以后把前端拆出去用 Vite 单独跑，跨域请求也不会被浏览器拦下。
+
+## 2. 页面功能
+
+| 功能 | 说明 |
+| --- | --- |
+| 流式对话 | 默认调用 `POST /api/chat/stream`，用 `fetch` + `ReadableStream` 解析 SSE，逐字上屏 |
+| 非流式对话 | 关掉侧边栏的「流式输出」开关，改用 `POST /api/chat` 一次性返回 |
+| 停止生成 | 生成中发送按钮变成停止按钮，内部用 `AbortController` 中断请求 |
+| 重新生成 | 丢掉最后一轮问答后重新提问 |
+| 温度调节 | 滑块 0~2，直接映射到后端的 `temperature` 字段 |
+| Markdown 渲染 | 标题、列表、表格、引用、行内代码、代码块（带复制按钮），先转义再拼标签 |
+| 会话管理 | 多会话、按时间分组、搜索、删除，全部存在浏览器 localStorage |
+| 深浅色主题 | 右上角切换，`data-theme` + CSS 变量实现 |
+
+## 3. 需要知道的两个约束
+
+- **后端目前不接收历史消息**：`ChatRequest` 只有 `message` 和 `temperature`，
+  每次请求都是「单轮独立」的。前端的会话历史只存在浏览器里用于展示，模型本身没有上下文记忆。
+  要支持多轮对话，需要把 `ChatRequest` 改成接收 `messages: list[dict]`（前端保留的历史可以直接用）。
+- **`temperature` 是必填字段**：`Field(ge=0, le=2)` 没有默认值，
+  所以前端每次请求都会带上它，漏传会直接返回 422。
+
 
