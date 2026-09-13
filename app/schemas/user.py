@@ -6,10 +6,10 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 class UserBase(BaseModel):
     """创建/更新用户共用的字段与校验规则。"""
 
-    username: str = Field(min_length=3, max_length=20)
+    name: str = Field(min_length=3, max_length=20)
     email: EmailStr
 
-    @field_validator("username")
+    @field_validator("name")
     @classmethod
     def validate_username(cls, value: str) -> str:
         # 判断“包含空格”必须是英文空格 ' '；'' in value 永远为 True
@@ -32,7 +32,7 @@ class UserUpdate(UserBase):
 
 class UserResponse(UserBase):
     """返回给客户端的数据，注意不要返回 password。"""
-
+    """ 返回的也要和数据库一致"""
     id: int
 
 

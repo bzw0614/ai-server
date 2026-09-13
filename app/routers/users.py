@@ -1,10 +1,12 @@
 """users 路由：只负责接收 HTTP 参数、调用 Service、返回结果。"""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query,Depends
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.schemas.user import UserCreate, UserPage, UserResponse
 from app.services import user_service
-
+from app.config.database import get_db
+from app.model.user import User
 user_router = APIRouter(prefix="/api", tags=["users"])
 
 
@@ -34,6 +36,17 @@ def get_user(user_id: int) -> UserResponse:
     user = user_service.get_user_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
+    return user
+
+@user_router.get("/mysql/users/{user_id}", response_model=)
+async def get_user(user_id: int,db: AsyncSession = Depends(get_db)) -> UserResponse:
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="用户不存在"
+        )
+    # 要求返回UserResponse但是这里能返回user实体类，因为FastAPI/Pydantic 会把 ORM 对象转换成响应模型。
     return user
 
 
