@@ -7,7 +7,10 @@
 """
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from app.tools.tool_definitions import WEATHER_TOOL
+from sqlalchemy.ext.asyncio.session import AsyncSession
+
+from app.config.database import get_db
+from app.tools.tool_definitions import WEATHER_TOOL, DATABASE_TOOL
 from app.schemas.chat import ChatResponse, ChatRequest
 from app.services import chat_service
 '''
@@ -18,10 +21,11 @@ from app.services import chat_service
 chat_router = APIRouter(prefix="/api", tags=["chat"])
 # @chat_router.get("/chat",dependencies=[Depends(validate_key)])
 @chat_router.post("/chat",response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> ChatResponse:
     # agent_chat 内部会按需调用 WEATHER_TOOL，并返回 ChatResponse 实例；
     # 返回裸字符串的话，FastAPI 的 response_model 校验会直接失败。
-    return await chat_service.agent_chat(request,WEATHER_TOOL)
+    # db 要一路透传下去：agent_chat 内部的数据库工具靠它执行查询。
+    return await chat_service.agent_chat(request,[WEATHER_TOOL,DATABASE_TOOL], db)
 
 @chat_router.post("/chat/stream")
 async def chat_stream(request: ChatRequest):

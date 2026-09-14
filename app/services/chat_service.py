@@ -10,9 +10,27 @@ import json
 import httpx
 
 from app.config.config import LLM_MODEL, LLM_API_KEY, LLM_BASE_URL
+from app.model.user import Base
 from app.prompts.system import SYSTEM_PROMPT
 from app.schemas.chat import ChatRequest, ChatResponse
+from app.tools.query_database import get_user_by_name
 from app.tools.weather import get_weather
+
+
+def _jsonable(value):
+    """把工具返回值转成 json.dumps 认得的结构。
+
+    get_user_by_name 返回的是 SQLAlchemy 的 User 对象（或对象列表），
+    直接 json.dumps 会报 Object of type User is not JSON serializable，
+    所以先按表字段拍平成 dict，再喂给模型。
+    """
+    if isinstance(value, Base):
+        return {c.name: _jsonable(getattr(value, c.name)) for c in value.__table__.columns}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, dict):
+        return {k: _jsonable(item) for k, item in value.items()}
+    return value
 
 
 async def chat(messages, tools=None, temperature=None):
@@ -61,8 +79,12 @@ async def chat(messages, tools=None, temperature=None):
         return result
 
 
-async def agent_chat(request: ChatRequest, tools=None) -> ChatResponse:
-    """带工具调用的对话：模型要工具就执行，把结果喂回去，直到模型给出最终回答。"""
+async def agent_chat(request: ChatRequest, tools=None, db=None) -> ChatResponse:
+    """带工具调用的对话：模型要工具就执行，把结果喂回去，直到模型给出最终回答。
+
+    db 是路由层用 Depends(get_db) 注入进来的数据库会话：工具函数自己拿不到会话，
+    只能由调用方（这里是路由）传下来，否则 get_user_by_name 缺参数直接 TypeError。
+    """
     # 对话历史。外层是列表，里面的每个元素是 dict（写成 {} 会变成集合，dict 不可哈希，直接报错）
     messages = [
         {
@@ -105,15 +127,21 @@ async def agent_chat(request: ChatRequest, tools=None) -> ChatResponse:
 
             if function_name == "get_weather":
                 result = get_weather(**arguments)
+            elif function_name == "get_user_by_name":
+                if db is None:
+                    result = {"error": "没有数据库会话，查不了用户"}
+                else:
+                    # 工具函数是 async 的，漏了 await 会拿到协程对象，json.dumps 立刻报错
+                    result = await get_user_by_name(db, **arguments)
             else:
                 result = {"error": f"未知工具：{function_name}"}
-
             messages.append(
                 {
                     "role": "tool",
                     # 每一个方法调用都会有一个 ID
                     "tool_call_id": tool_call["id"],
-                    "content": json.dumps(result, ensure_ascii=False),
+                    # default=str 兜底：date/datetime 这类 json 不认的类型转成字符串
+                    "content": json.dumps(_jsonable(result), ensure_ascii=False, default=str),
                 }
             )
 

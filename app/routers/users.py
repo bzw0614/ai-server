@@ -1,4 +1,5 @@
 """users 路由：只负责接收 HTTP 参数、调用 Service、返回结果。"""
+from typing import List
 
 from fastapi import APIRouter, HTTPException, Query,Depends
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -7,6 +8,8 @@ from app.schemas.user import UserCreate, UserPage, UserResponse
 from app.services import user_service
 from app.config.database import get_db
 from app.model.user import User
+from app.tools.query_database import get_user_by_name
+
 user_router = APIRouter(prefix="/api", tags=["users"])
 
 
@@ -38,7 +41,7 @@ def get_user(user_id: int) -> UserResponse:
         raise HTTPException(status_code=404, detail="用户不存在")
     return user
 
-@user_router.get("/mysql/users/{user_id}", response_model=)
+@user_router.get("/mysql/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: int,db: AsyncSession = Depends(get_db)) -> UserResponse:
     user = await db.get(User, user_id)
     if user is None:
@@ -49,6 +52,11 @@ async def get_user(user_id: int,db: AsyncSession = Depends(get_db)) -> UserRespo
     # 要求返回UserResponse但是这里能返回user实体类，因为FastAPI/Pydantic 会把 ORM 对象转换成响应模型。
     return user
 
+@user_router.get("/mysql/users/by-username/{username}", response_model=List[UserResponse])
+async def get_users(username:str,db: AsyncSession = Depends(get_db)) -> List[UserResponse]:
+    if username == "":
+        return []
+    return await get_user_by_name(db,username)
 
 @user_router.delete("/users/{user_id}", status_code=204)
 def delete_user(user_id: int) -> None:

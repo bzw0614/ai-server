@@ -33,3 +33,30 @@ WEATHER_TOOL = {
         }
     }
 }
+
+DATABASE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_user_by_name",
+        # 描述是模型判断「该不该用这个工具、怎么用」的唯一依据：
+        # 要写明支持模糊匹配、返回的是列表，否则「名字里带 b 的用户有哪些」
+        # 这种列举型问题会被模型判为不适用，直接凭常识乱答。
+        "description": (
+            "按用户名模糊查询用户，返回所有名字中包含该关键字的用户列表"
+            "（含 id、name、age、email）。"
+            "当用户问「有哪些用户」「名字里带 xx 的人是谁」这类列举问题时使用本工具。"
+        ),
+        # required 必须放在 parameters 内部、和 properties 同级。
+        # 放到 function 这一层不是合法字段，会被上游忽略，等于没声明必填项。
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "username": {
+                    "type": "string",
+                    "description": "用户名关键字，支持模糊匹配，例如 b、zhang、张三"
+                }
+            },
+            "required": ["username"]
+        }
+    }
+}
