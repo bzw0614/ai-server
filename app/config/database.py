@@ -6,11 +6,8 @@
 
 """
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
-    async_sessionmaker,
-    AsyncSession
+    async_sessionmaker
 )
-from sqlalchemy.orm.session import sessionmaker
 
 from app.config.config import DATABASE_URL
 from sqlalchemy.ext.asyncio import create_async_engine

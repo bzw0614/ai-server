@@ -42,3 +42,36 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
     )
+
+# docker
+"""
+构建: 根据当前目录下的 Dockerfile，制作一个叫 ai-server 的 Docker 镜像。
+-t:可以理解成 tag（给镜像起名字）
+.表示当前目录
+
+docker build -t ai-server .
+当前目录
+    ↓
+找到 Dockerfile
+    ↓
+读取 Dockerfile
+    ↓
+FROM python:3.12-slim
+    ↓
+COPY requirements.txt
+    ↓
+pip install
+    ↓
+COPY 项目代码
+    ↓
+生成镜像
+    ↓
+镜像名字：ai-server
+
+启动：用 ai-server 镜像创建一个叫 ai-server 的容器，在后台运行，并把本机的 8000 端口映射到容器的 8000 端口，同时把 .env 里的环境变量传给容器。
+docker run -d --name ai-server -p 8000:8000 --env-file .env ai-server
+查看
+docker ps
+看日志
+docker logs -f ai-server
+"""
